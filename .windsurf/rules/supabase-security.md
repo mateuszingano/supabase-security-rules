@@ -11,13 +11,13 @@ When you create or change a table in a Supabase `public` schema, do ALL of the f
    ```sql
    alter table public.<table> enable row level security;
    ```
-2. **Add a policy per operation, scoped to the user** (not just to a role):
+2. **Add a policy per operation, scoped to the user** (not just to a role), unless the data is public on purpose (see below):
    - `SELECT` / `DELETE`: `using (user_id = (select auth.uid()))`
    - `INSERT`: `with check (user_id = (select auth.uid()))`
    - `UPDATE`: **both** `using (...)` and `with check (...)`
 
    For team/workspace data, scope by membership (the user's teams), not by role alone.
-3. **Grant access explicitly.** Since Oct 30 2026, new tables in `public` are **not** exposed to the Data API without a grant:
+3. **Grant access explicitly.** Starting Oct 30 2026, new tables in `public` are **not** exposed to the Data API without a grant:
    ```sql
    grant select, insert, update, delete on public.<table> to authenticated;
    ```
@@ -27,7 +27,7 @@ When you create or change a table in a Supabase `public` schema, do ALL of the f
 
 **Never:**
 - Ship the `service_role` key (or any `sb_secret_...` key) to the browser, or put it in a `NEXT_PUBLIC_*` variable. It **bypasses RLS entirely** — server-side only.
-- Use `using (true)` or `with check (true)` on a table a client role can reach. RLS is "on" but every row is exposed.
+- Use `using (true)` or `with check (true)` on private data a client role can reach. RLS is "on" but every row is exposed. For a table that is public on purpose (a catalog, pricing), a read-only `for select to anon, authenticated using (true)` is fine: say so in a comment and don't add write policies for those roles.
 - "Fix" a `42501 permission denied for table` by running `grant ... on all tables in schema public`. That re-grants **every** table, including ones with RLS off, re-exposing them. Grant the one table instead.
 
 **Good to know:**
